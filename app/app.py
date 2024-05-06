@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -20,7 +20,7 @@ class Grade(db.Model):
     value = db.Column(db.Integer)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
 
-# API rotası
+# API rotası - Öğrenci bilgilerini getiren endpoint
 @app.route('/students', methods=['GET'])
 def get_students():
     students = Student.query.all()
@@ -52,6 +52,30 @@ def get_students():
                     'value': values[0]
                 })
     return jsonify({'students': student_list})
+
+# Yeni öğrenci ve not eklemek için API rotası
+@app.route('/students', methods=['POST'])
+def add_student():
+    data = request.get_json()
+    name = data.get('name')
+    surname = data.get('surname')
+    std_number = data.get('std_number')
+    grades = data.get('grades')
+
+    # Veritabanına yeni öğrenciyi ekle
+    new_student = Student(name=name, surname=surname, std_number=std_number)
+    db.session.add(new_student)
+    db.session.commit()
+
+    # Her bir ders notu için ortalama değeri hesapla ve kaydet
+    for grade_data in grades:
+        code = grade_data.get('code')
+        value = grade_data.get('value')
+        new_grade = Grade(code=code, value=value, student_id=new_student.id)
+        db.session.add(new_grade)
+    db.session.commit()
+
+    return jsonify({'message': 'Student and grades added successfully'}), 201
 
 if __name__ == '__main__':
     app.run(debug=True)
